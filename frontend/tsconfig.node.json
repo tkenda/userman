@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "composite": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "typeRoots": [
+      "./entities.d.ts"
+    ]
+  },
+  "include": [
+    "vite.config.ts",
+    "./entities.d.ts"
+  ]
+}
