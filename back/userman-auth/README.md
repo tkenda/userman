@@ -1,1 +1,0 @@
-# userman-auth-rust
