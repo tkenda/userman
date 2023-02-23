@@ -1,3 +1,6 @@
 [submodule "back/userman-auth-rs"]
 	path = back/userman-auth
 	url = https://github.com/tkenda/userman-auth-rs.git
+[submodule "front/userman-auth-js"]
+	path = front/userman-auth
+	url = https://github.com/tkenda/userman-auth-js.git
