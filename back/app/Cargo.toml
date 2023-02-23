@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-auth = { path = "../auth" }
+userman-auth = { path = "../userman-auth" }
 axum = { version = "0.6.2", features = ["headers"] }
 axum-server = { version = "0.4.4", features = ["tls-rustls"] }
 futures = "0.3.25"

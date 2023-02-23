@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use auth::role::RoleItems;
-use auth::app::App;
+use userman_auth::role::RoleItems;
+use userman_auth::app::App;
 
 use crate::dao::{Dao, Memory};
 use crate::Result;

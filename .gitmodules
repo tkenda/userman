@@ -1,0 +1,3 @@
+[submodule "userman-auth-rust"]
+	path = userman-auth
+	url = https://github.com/tkenda/userman-auth-rust.git

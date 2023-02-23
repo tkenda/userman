@@ -18,8 +18,8 @@ use crate::users::{User, ADMIN_USERNAME};
 use crate::watchers::Event;
 use crate::{Result, UmtError};
 
-use auth::app::{App, LOCAL_APP};
-use auth::role::{Role, LOCAL_ROLE};
+use userman_auth::app::{App, LOCAL_APP};
+use userman_auth::role::{Role, LOCAL_ROLE};
 
 const ROLES: &str = "roles";
 const CONFIGS: &str = "configs";

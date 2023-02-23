@@ -4,7 +4,7 @@ use axum::extract::{Json, Path};
 use axum::response::{Extension, IntoResponse};
 use mongodb::bson::oid::ObjectId;
 
-use auth::role::Role;
+use userman_auth::role::Role;
 
 use crate::dao::Memory;
 use crate::error::UmtError;

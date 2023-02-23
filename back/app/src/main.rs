@@ -13,7 +13,9 @@ mod watchers;
 #[cfg(test)]
 mod tests;
 
-use auth::role::RoleItems;
+use userman_auth::role::RoleItems;
+use userman_auth::app::LOCAL_APP;
+use userman_auth::Auth;
 use config_yaml::ConfigYAML;
 use configs::Configs;
 use dao::{Dao, Memory};
@@ -22,9 +24,6 @@ use logger::LogsLevel;
 use mongodb::bson::oid::ObjectId;
 use serde::ser::SerializeSeq;
 use tokens::{Keys, SessionToken};
-
-use auth::app::LOCAL_APP;
-use auth::Auth;
 
 pub type Result<T> = std::result::Result<T, UmtError>;
 

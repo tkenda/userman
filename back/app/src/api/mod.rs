@@ -28,7 +28,7 @@ macro_rules! value {
 
 macro_rules! validate_bool {
     ($value:ident) => {
-        use auth::role::DataValue;
+        use userman_auth::role::DataValue;
 
         match $value {
             DataValue::Boolean(true) => {}

@@ -3,7 +3,7 @@ use reqwest::StatusCode;
 use serde_json::json;
 use thiserror::Error;
 
-use auth::AuthError;
+use userman_auth::AuthError;
 
 #[derive(Debug, Error)]
 pub enum UmtError {

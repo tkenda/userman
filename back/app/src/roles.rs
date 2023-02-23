@@ -6,10 +6,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use auth::role::{Role, RoleItems};
+use userman_auth::role::{Role, RoleItems};
 
 use crate::dao::{Dao, Memory};
-use crate::{serialize_option_oid_as_string};
+use crate::serialize_option_oid_as_string;
 use crate::Result;
 
 /* Role */
@@ -49,12 +49,11 @@ impl From<&Role> for RoleDB {
                 name: role.name.clone(),
                 items: role.items.clone(),
                 created_at: None,
-                updated_at: Some(DateTime::now())
+                updated_at: Some(DateTime::now()),
             }
         }
     }
 }
-
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
