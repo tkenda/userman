@@ -47,6 +47,7 @@
           @updated="handleUpdated"
           @unselect="handleUnselect"
           class="sticky-card"
+          newButton
         />
       </v-col>
     </v-row>

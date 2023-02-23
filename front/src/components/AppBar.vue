@@ -24,7 +24,7 @@ export default {
   name: "AppBar",
   emit: ["toggleNavbar"],
   data: () => ({
-    title: "User Managment Tool",
+    title: "Userman",
     search: "",
   }),
   watch: {

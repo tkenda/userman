@@ -1,5 +1,6 @@
 use axum::{extract::Json, response::IntoResponse, Extension};
 use serde::{Deserialize, Serialize};
+use userman_auth::role::RoleItems;
 
 use crate::dao::Memory;
 use crate::tokens::{Claims, RefreshToken};
@@ -21,6 +22,7 @@ pub(crate) struct LoginReq {
 pub(crate) struct LoginRes {
     access_token: String,
     refresh_token: String,
+    permissions: RoleItems,
 }
 
 pub(crate) async fn login(
@@ -29,9 +31,6 @@ pub(crate) async fn login(
 ) -> impl IntoResponse {
     match shared.users.get(&payload.username).await {
         Some(t) if t.verify(payload.password) => {
-            let app = "APP".to_string();
-            let username = t.username;
-
             /* access token */
 
             let duration = shared.keys.duration().await;
@@ -43,7 +42,7 @@ pub(crate) async fn login(
                 }
             }
 
-            let claims = Claims::new(&username, roles_names, duration);
+            let claims = Claims::new(&t.username, roles_names.clone(), duration);
 
             let encoding_key = shared.keys.encoding_key().await;
 
@@ -55,15 +54,20 @@ pub(crate) async fn login(
             /* refresh token */
 
             let refresh_token =
-                RefreshToken::build(username, app, payload.device, payload.location);
+                RefreshToken::build(t.username, "APP", payload.device, payload.location);
 
             if let Err(err) = shared.dao.create_refresh_token(&refresh_token).await {
                 return Output::Failure(err);
             }
 
+            /* permissions */
+
+            let permissions = shared.auth.permissions(roles_names).await;
+
             Output::Success(LoginRes {
                 access_token,
                 refresh_token: refresh_token.to_string(),
+                permissions,
             })
         }
         _ => Output::Failure(UmtError::InvalidCredentials),

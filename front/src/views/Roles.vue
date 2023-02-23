@@ -47,6 +47,7 @@
           @created="handleCreatedDeleted"
           @deleted="handleCreatedDeleted"
           @unselect="handleUnselect"
+          newButton
         />
       </v-col>
     </v-row>

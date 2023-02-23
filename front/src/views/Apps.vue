@@ -43,6 +43,7 @@
           @deleted="handleCreatedDeleted"
           @unselect="handleUnselect"
           class="sticky-card"
+          newButton
       /></v-col>
     </v-row>
   </template>

@@ -13,6 +13,13 @@
       <v-toolbar-title class="font-weight-light">
         <strong v-html="fullname"></strong>
       </v-toolbar-title>
+
+      <v-toolbar-title class="d-flex justify-end px-2" v-if="newButton">
+        <v-btn variant="outlined" @click="clear">
+          New
+          <v-icon end icon="mdi-plus"></v-icon>
+        </v-btn>
+      </v-toolbar-title>
     </v-toolbar>
 
     <v-card-text class="pt-4 pb-2">
@@ -160,6 +167,10 @@ export default {
       default: false,
       type: Boolean,
     },
+    newButton: {
+      default: false,
+      type: Boolean,
+    }
   },
   data() {
     return {

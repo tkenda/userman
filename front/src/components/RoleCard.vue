@@ -2,9 +2,14 @@
   <v-card min-width="400px" :loading="loadingColor">
     <v-toolbar flat color="primary" density="compact">
       <v-toolbar-title class="font-weight-light">
-        <v-toolbar-title class="font-weight-light">
-          <strong v-html="localRole.name"></strong>
-        </v-toolbar-title>
+        <strong v-html="localRole.name"></strong>
+      </v-toolbar-title>
+
+      <v-toolbar-title class="d-flex justify-end px-2" v-if="newButton">
+        <v-btn variant="outlined" @click="clear">
+          New
+          <v-icon end icon="mdi-plus"></v-icon>
+        </v-btn>
       </v-toolbar-title>
     </v-toolbar>
 
@@ -104,6 +109,10 @@ export default {
       default: false,
       type: Boolean,
     },
+    newButton: {
+      default: false,
+      type: Boolean,
+    }
   },
   data() {
     return {

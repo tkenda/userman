@@ -9,6 +9,8 @@ mod roles;
 mod tokens;
 mod users;
 mod watchers;
+mod files;
+mod web;
 
 #[cfg(test)]
 mod tests;
@@ -129,9 +131,9 @@ pub struct Shared {
 }
 
 impl Shared {
-    async fn role_items(&self, token: SessionToken) -> Result<RoleItems> {
+    async fn permissions(&self, token: SessionToken) -> Result<RoleItems> {
         let role_names = token.role_names(&self.keys).await?;
-        Ok(self.auth.add_role_items(role_names).await)
+        Ok(self.auth.permissions(role_names).await)
     }
 }
 
@@ -168,7 +170,7 @@ async fn main() -> Result<()> {
     let shared_ref = shared.clone();
 
     tokio::spawn(async move {
-        if let Err(err) = api::run(shared_ref).await {
+        if let Err(err) = web::run(shared_ref).await {
             error!("{}", err);
         }
     });

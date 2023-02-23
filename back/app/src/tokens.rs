@@ -167,16 +167,16 @@ impl ToString for RefreshToken {
 }
 
 impl RefreshToken {
-    pub fn build(
+    pub fn build<T: Into<String>>(
         username: String,
-        app: String,
+        app: T,
         device: Option<String>,
         location: Option<Vec<f64>>,
     ) -> Self {
         Self {
             username,
             token: Alphanumeric.sample_string(&mut rand::thread_rng(), 128),
-            app,
+            app: app.into(),
             device,
             location,
             created_at: DateTime::now(),

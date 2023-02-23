@@ -1,16 +1,14 @@
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
-use axum::{Extension, Router};
-use axum_server::tls_rustls::RustlsConfig;
+use axum::Router;
 use reqwest::StatusCode;
 use serde::Serialize;
-use std::net::SocketAddr;
 
-use crate::{Result, Shared, UmtError};
+use crate::{Result, UmtError};
 
 macro_rules! roles {
     ($shared:ident, $token:ident) => {
-        match $shared.role_items($token).await {
+        match $shared.permissions($token).await {
             Ok(t) => t,
             Err(err) => return Output::Unauthorized(err),
         }
@@ -124,7 +122,7 @@ static A: &str = "/apps/:id";
 static R: &str = "/roles/:id";
 static U: &str = "/users/:id";
 
-fn v1_routes() -> Router {
+pub fn v1_routes() -> Router {
     Router::new()
         .route("/login", post(sessions::login))
         .route("/logout", post(sessions::logout))
@@ -144,31 +142,3 @@ fn v1_routes() -> Router {
         .route(U, put(users::update).delete(users::delete).get(users::read))
 }
 
-pub async fn run(shared: Shared) -> Result<()> {
-    let config_yaml = shared.config_yaml.clone();
-    let address = SocketAddr::new(config_yaml.ip, config_yaml.port);
-
-    let app = Router::new()
-        .nest(
-            &format!("{}/api/v1", config_yaml.front.public_url),
-            v1_routes(),
-        )
-        .layer(Extension(shared));
-
-    match config_yaml.tls.enabled {
-        true => {
-            let rustls = RustlsConfig::from_pem_file(&config_yaml.tls.certs, &config_yaml.tls.key)
-                .await
-                .map_err(|err| UmtError::PEMFile(err.to_string()))?;
-
-            axum_server::bind_rustls(address, rustls)
-                .serve(app.into_make_service())
-                .await
-                .map_err(|err| UmtError::WebServer(err.to_string()))
-        }
-        false => axum::Server::bind(&address)
-            .serve(app.into_make_service())
-            .await
-            .map_err(|err| UmtError::WebServer(err.to_string())),
-    }
-}
