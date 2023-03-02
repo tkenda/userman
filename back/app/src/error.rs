@@ -1,4 +1,7 @@
-use axum::{response::{IntoResponse, Response}, Json};
+use axum::{
+    response::{IntoResponse, Response},
+    Json,
+};
 use reqwest::StatusCode;
 use serde_json::json;
 use thiserror::Error;
@@ -6,7 +9,7 @@ use thiserror::Error;
 use userman_auth::AuthError;
 
 #[derive(Debug, Error)]
-pub enum UmtError {
+pub enum UsermanError {
     #[error("Can't create SIGINT stream. {0}")]
     SignalInterrupt(std::io::Error),
     #[error("Can't create SIGTERM stream. {0}")]
@@ -57,30 +60,36 @@ pub enum UmtError {
     InvalidCredentials,
     #[error("Invalid username.")]
     InvalidUsername,
-    #[error("Invalid token.")]
-    InvalidToken,
     #[error("Parse MongoDB ObjectId UUID. {0}")]
     ParseObjectId(mongodb::bson::oid::Error),
     #[error("Role not found.")]
     RoleNotFound,
     #[error("App not found.")]
     AppNotFound,
-    #[error("Auth error. {0}")]
-    Auth(#[from] AuthError),
     #[error("Unauthorized")]
     Unauthorized,
+    #[error("Disabled user.")]
+    DisabledUser,
+    #[error("Invalid token.")]
+    InvalidToken,
+    #[error("Uninitialized password.")]
+    UninitializedPassword,
+
+    #[error("Auth error. {0}")]
+    Auth(#[from] AuthError),
 }
 
-impl UmtError {
+impl UsermanError {
     pub fn code_number(&self) -> Option<u8> {
         match self {
             Self::InvalidToken => Some(1),
+            Self::UninitializedPassword => Some(2),
             _ => None,
         }
     }
 }
 
-impl IntoResponse for UmtError {
+impl IntoResponse for UsermanError {
     fn into_response(self) -> Response {
         let body = match self.code_number() {
             Some(t) => {

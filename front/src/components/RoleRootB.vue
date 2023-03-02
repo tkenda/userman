@@ -13,7 +13,7 @@
 import RoleValues from "./RoleValues.vue";
 
 export default {
-  name: "RoleRoot",
+  name: "RoleRootB",
   components: {
     RoleValues,
   },

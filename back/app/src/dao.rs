@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use bcrypt::{hash, DEFAULT_COST};
 use futures::stream::StreamExt;
 use futures::stream::TryStreamExt;
 use mongodb::bson::oid::ObjectId;
@@ -16,10 +17,10 @@ use crate::roles::RoleDB;
 use crate::tokens::{RefreshToken, SessionToken};
 use crate::users::{User, ADMIN_USERNAME};
 use crate::watchers::Event;
-use crate::{Result, UmtError};
+use crate::{Result, UsermanError};
 
-use userman_auth::app::{App, LOCAL_APP};
-use userman_auth::role::{Role, LOCAL_ROLE};
+use userman_auth::apps::{App, LOCAL_APP};
+use userman_auth::roles::{Role, LOCAL_ROLE};
 
 const ROLES: &str = "roles";
 const CONFIGS: &str = "configs";
@@ -65,20 +66,18 @@ impl Dao {
             .insert_one(config, None)
             .await
             .map(|t| t.inserted_id.as_object_id())
-            .map_err(UmtError::MongoInsertOne)
+            .map_err(UsermanError::MongoInsertOne)
     }
 
     pub async fn read_config(&self, id: &str) -> Result<Option<Config>> {
         self.database
             .collection::<Config>(CONFIGS)
             .find_one(
-                doc! {
-                    "_id": id
-                },
+                doc! { "_id": id },
                 None,
             )
             .await
-            .map_err(UmtError::MongoFindOne)
+            .map_err(UsermanError::MongoFindOne)
     }
 
     pub async fn read_all_configs(&self) -> Result<HashMap<String, ConfigData>> {
@@ -87,11 +86,11 @@ impl Dao {
             .collection::<Config>(CONFIGS)
             .find(doc! {}, None)
             .await
-            .map_err(UmtError::MongoFind)?;
+            .map_err(UsermanError::MongoFind)?;
 
         let mut configs = HashMap::new();
 
-        while let Some(config) = cursor.try_next().await.map_err(UmtError::MongoReadCursor)? {
+        while let Some(config) = cursor.try_next().await.map_err(UsermanError::MongoReadCursor)? {
             configs.insert(config.id(), config.data);
         }
 
@@ -104,7 +103,7 @@ impl Dao {
             .collection::<Config>(CONFIGS)
             .watch(vec![], None)
             .await
-            .map_err(UmtError::MongoWatchChangeStream)?;
+            .map_err(UsermanError::MongoWatchChangeStream)?;
 
         while let Some(Ok(_)) = change_stream.next().await {
             _ = tx.send(Event::Configs).await;
@@ -121,7 +120,7 @@ impl Dao {
             .insert_one(user.clone().into_create_db(), None)
             .await
             .map(|t| t.inserted_id.as_object_id())
-            .map_err(UmtError::MongoInsertOne)
+            .map_err(UsermanError::MongoInsertOne)
     }
 
     pub async fn read_user_by_username(&self, username: &str) -> Result<Option<User>> {
@@ -129,11 +128,11 @@ impl Dao {
             .collection::<User>(USERS)
             .find_one(doc! { "username": username }, None)
             .await
-            .map_err(UmtError::MongoFindOne)
+            .map_err(UsermanError::MongoFindOne)
     }
 
     pub async fn update_user_by_id(&self, id: impl AsRef<str>, user: &User) -> Result<()> {
-        let _id = ObjectId::parse_str(id).map_err(UmtError::ParseObjectId)?;
+        let _id = ObjectId::parse_str(id).map_err(UsermanError::ParseObjectId)?;
 
         self.database
             .collection::<User>(USERS)
@@ -144,18 +143,55 @@ impl Dao {
             )
             .await
             .map(|_| ())
-            .map_err(UmtError::MongoUpdateOne)
+            .map_err(UsermanError::MongoUpdateOne)
+    }
+
+    pub async fn update_user_password_by_id(
+        &self,
+        id: impl AsRef<str>,
+        password: &str,
+    ) -> Result<()> {
+        let _id = ObjectId::parse_str(id).map_err(UsermanError::ParseObjectId)?;
+
+        self.database
+            .collection::<User>(USERS)
+            .update_one(
+                doc! {
+                    "_id": _id,
+                    "password": { "$exists": false },
+                },
+                doc! { "$set" : { "password": hash(password, DEFAULT_COST).unwrap() } },
+                None,
+            )
+            .await
+            .map(|_| ())
+            .map_err(UsermanError::MongoUpdateOne)
+    }
+
+    pub async fn reset_user_password_by_id(&self, id: impl AsRef<str>) -> Result<()> {
+        let _id = ObjectId::parse_str(id).map_err(UsermanError::ParseObjectId)?;
+
+        self.database
+            .collection::<User>(USERS)
+            .update_one(
+                doc! { "_id": _id },
+                doc! { "$unset" : { "password": 1 } },
+                None,
+            )
+            .await
+            .map(|_| ())
+            .map_err(UsermanError::MongoUpdateOne)
     }
 
     pub async fn delete_user_by_id(&self, id: impl AsRef<str>) -> Result<()> {
-        let _id = ObjectId::parse_str(id).map_err(UmtError::ParseObjectId)?;
+        let _id = ObjectId::parse_str(id).map_err(UsermanError::ParseObjectId)?;
 
         self.database
             .collection::<User>(USERS)
             .delete_one(doc! { "_id": _id }, None)
             .await
             .map(|_| ())
-            .map_err(UmtError::MongoDeleteOne)
+            .map_err(UsermanError::MongoDeleteOne)
     }
 
     pub async fn read_all_users(&self) -> Result<(HashMap<ObjectId, User>, HashMap<String, User>)> {
@@ -167,12 +203,12 @@ impl Dao {
                 Some(FindOptions::builder().sort(doc! { "username": 1 }).build()),
             )
             .await
-            .map_err(UmtError::MongoFind)?;
+            .map_err(UsermanError::MongoFind)?;
 
         let mut users = HashMap::new();
         let mut users_by_username = HashMap::new();
 
-        while let Some(user) = cursor.try_next().await.map_err(UmtError::MongoReadCursor)? {
+        while let Some(user) = cursor.try_next().await.map_err(UsermanError::MongoReadCursor)? {
             users.insert(user.id(), user.clone());
             users_by_username.insert(user.username.clone(), user);
         }
@@ -186,7 +222,7 @@ impl Dao {
             .collection::<User>(USERS)
             .watch(vec![], None)
             .await
-            .map_err(UmtError::MongoWatchChangeStream)?;
+            .map_err(UsermanError::MongoWatchChangeStream)?;
 
         while let Some(Ok(_)) = change_stream.next().await {
             _ = tx.send(Event::Users).await;
@@ -203,7 +239,7 @@ impl Dao {
             .insert_one(RoleDB::from(role), None)
             .await
             .map(|t| t.inserted_id.as_object_id())
-            .map_err(UmtError::MongoInsertOne)
+            .map_err(UsermanError::MongoInsertOne)
     }
 
     pub async fn read_role_by_name(&self, name: &str) -> Result<Option<Role>> {
@@ -211,11 +247,11 @@ impl Dao {
             .collection(ROLES)
             .find_one(doc! { "name": name }, None)
             .await
-            .map_err(UmtError::MongoFindOne)
+            .map_err(UsermanError::MongoFindOne)
     }
 
     pub async fn update_role_by_id(&self, id: impl AsRef<str>, role: &Role) -> Result<()> {
-        let _id = ObjectId::parse_str(id).map_err(UmtError::ParseObjectId)?;
+        let _id = ObjectId::parse_str(id).map_err(UsermanError::ParseObjectId)?;
 
         self.database
             .collection::<Role>(ROLES)
@@ -226,18 +262,18 @@ impl Dao {
             )
             .await
             .map(|_| ())
-            .map_err(UmtError::MongoUpdateOne)
+            .map_err(UsermanError::MongoUpdateOne)
     }
 
     pub async fn delete_role_by_id(&self, id: impl AsRef<str>) -> Result<()> {
-        let _id = ObjectId::parse_str(id).map_err(UmtError::ParseObjectId)?;
+        let _id = ObjectId::parse_str(id).map_err(UsermanError::ParseObjectId)?;
 
         self.database
             .collection::<Role>(ROLES)
             .delete_one(doc! { "_id": _id }, None)
             .await
             .map(|_| ())
-            .map_err(UmtError::MongoDeleteOne)
+            .map_err(UsermanError::MongoDeleteOne)
     }
 
     pub async fn read_all_roles(&self) -> Result<(HashMap<ObjectId, Role>, HashMap<String, Role>)> {
@@ -246,12 +282,12 @@ impl Dao {
             .collection::<Role>(ROLES)
             .find(doc! {}, None)
             .await
-            .map_err(UmtError::MongoFind)?;
+            .map_err(UsermanError::MongoFind)?;
 
         let mut roles = HashMap::new();
         let mut roles_by_name = HashMap::new();
 
-        while let Some(role) = cursor.try_next().await.map_err(UmtError::MongoReadCursor)? {
+        while let Some(role) = cursor.try_next().await.map_err(UsermanError::MongoReadCursor)? {
             roles.insert(role.id(), role.clone());
             roles_by_name.insert(role.name.clone(), role);
         }
@@ -265,7 +301,7 @@ impl Dao {
             .collection::<Role>(ROLES)
             .watch(vec![], None)
             .await
-            .map_err(UmtError::MongoWatchChangeStream)?;
+            .map_err(UsermanError::MongoWatchChangeStream)?;
 
         while let Some(Ok(_)) = change_stream.next().await {
             _ = tx.send(Event::Roles).await;
@@ -282,7 +318,7 @@ impl Dao {
             .insert_one(AppDB::from(app), None)
             .await
             .map(|t| t.inserted_id.as_object_id())
-            .map_err(UmtError::MongoInsertOne)
+            .map_err(UsermanError::MongoInsertOne)
     }
 
     pub async fn read_app_by_name(&self, name: &str) -> Result<Option<App>> {
@@ -290,7 +326,7 @@ impl Dao {
             .collection(APPS)
             .find_one(doc! { "name": name }, None)
             .await
-            .map_err(UmtError::MongoFindOne)
+            .map_err(UsermanError::MongoFindOne)
     }
 
     pub async fn read_all_apps(&self) -> Result<HashMap<ObjectId, App>> {
@@ -299,11 +335,11 @@ impl Dao {
             .collection::<App>(APPS)
             .find(doc! {}, None)
             .await
-            .map_err(UmtError::MongoFind)?;
+            .map_err(UsermanError::MongoFind)?;
 
         let mut apps = HashMap::new();
 
-        while let Some(app) = cursor.try_next().await.map_err(UmtError::MongoReadCursor)? {
+        while let Some(app) = cursor.try_next().await.map_err(UsermanError::MongoReadCursor)? {
             apps.insert(app.id(), app);
         }
 
@@ -311,7 +347,7 @@ impl Dao {
     }
 
     pub async fn update_app_by_id(&self, id: impl AsRef<str>, app: &App) -> Result<()> {
-        let _id = ObjectId::parse_str(id).map_err(UmtError::ParseObjectId)?;
+        let _id = ObjectId::parse_str(id).map_err(UsermanError::ParseObjectId)?;
 
         self.database
             .collection::<App>(APPS)
@@ -322,18 +358,18 @@ impl Dao {
             )
             .await
             .map(|_| ())
-            .map_err(UmtError::MongoUpdateOne)
+            .map_err(UsermanError::MongoUpdateOne)
     }
 
     pub async fn delete_app_by_id(&self, id: impl AsRef<str>) -> Result<()> {
-        let _id = ObjectId::parse_str(id).map_err(UmtError::ParseObjectId)?;
+        let _id = ObjectId::parse_str(id).map_err(UsermanError::ParseObjectId)?;
 
         self.database
             .collection::<App>(APPS)
             .delete_one(doc! { "_id": _id }, None)
             .await
             .map(|_| ())
-            .map_err(UmtError::MongoDeleteOne)
+            .map_err(UsermanError::MongoDeleteOne)
     }
 
     pub async fn watch_apps(&self, tx: &Sender<Event>) -> Result<()> {
@@ -342,7 +378,7 @@ impl Dao {
             .collection::<App>(APPS)
             .watch(vec![], None)
             .await
-            .map_err(UmtError::MongoWatchChangeStream)?;
+            .map_err(UsermanError::MongoWatchChangeStream)?;
 
         while let Some(Ok(_)) = change_stream.next().await {
             _ = tx.send(Event::Apps).await;
@@ -359,7 +395,7 @@ impl Dao {
             .insert_one(refresh_token, None)
             .await
             .map(|_| ())
-            .map_err(UmtError::MongoInsertOne)
+            .map_err(UsermanError::MongoInsertOne)
     }
 
     pub async fn read_refresh_token(
@@ -371,7 +407,7 @@ impl Dao {
             .collection(TOKENS)
             .find_one(doc! { "token": refresh_token, "username": username }, None)
             .await
-            .map_err(UmtError::MongoFindOne)
+            .map_err(UsermanError::MongoFindOne)
     }
 
     pub async fn delete_refresh_token(
@@ -383,7 +419,7 @@ impl Dao {
             .collection(TOKENS)
             .find_one_and_delete(doc! { "token": refresh_token, "username": username }, None)
             .await
-            .map_err(UmtError::MongoDeleteOne)
+            .map_err(UsermanError::MongoDeleteOne)
     }
 
     /* INIT */
@@ -405,7 +441,7 @@ impl Dao {
                 None,
             )
             .await
-            .map_err(UmtError::MongoCreateIndex)?;
+            .map_err(UsermanError::MongoCreateIndex)?;
 
         // Create users indexes.
         self.database
@@ -418,7 +454,7 @@ impl Dao {
                 None,
             )
             .await
-            .map_err(UmtError::MongoCreateIndex)?;
+            .map_err(UsermanError::MongoCreateIndex)?;
 
         // Create roles indexes.
         self.database
@@ -431,7 +467,7 @@ impl Dao {
                 None,
             )
             .await
-            .map_err(UmtError::MongoCreateIndex)?;
+            .map_err(UsermanError::MongoCreateIndex)?;
 
         // Create tokens indexes.
         self.database
@@ -443,7 +479,7 @@ impl Dao {
                 None,
             )
             .await
-            .map_err(UmtError::MongoCreateIndex)?;
+            .map_err(UsermanError::MongoCreateIndex)?;
 
         let expire_after = std::time::Duration::from_secs(43200);
 
@@ -461,7 +497,7 @@ impl Dao {
                 None,
             )
             .await
-            .map_err(UmtError::MongoCreateIndex)?;
+            .map_err(UsermanError::MongoCreateIndex)?;
 
         // Create local app.
         if self.read_app_by_name(LOCAL_APP).await?.is_none() {

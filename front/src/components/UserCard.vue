@@ -14,7 +14,10 @@
         <strong v-html="fullname"></strong>
       </v-toolbar-title>
 
-      <v-toolbar-title class="d-flex justify-end px-2" v-if="newButton">
+      <v-toolbar-title
+        class="d-flex justify-end px-2"
+        v-if="newButton && permissions.create"
+      >
         <v-btn variant="outlined" @click="clear">
           New
           <v-icon end icon="mdi-plus"></v-icon>
@@ -63,8 +66,9 @@
           v-model="localUser.description"
           label="Description"
           variant="underlined"
-          rows="1"
+          :rules="[rules.required]"
           auto-grow
+          rows="1"
         ></v-textarea>
         <v-combobox
           v-model="localUser.department"
@@ -95,12 +99,49 @@
       </v-form>
     </v-card-text>
 
-    <v-card-actions>
-      <v-btn color="primary" @click="clear()">Clear</v-btn>
-      <v-btn color="primary" @click="saveUser()" :disabled="!valid">Save</v-btn>
-      <v-btn v-if="closeButton" color="red" @click="deleteUser()">Delete</v-btn>
+    <v-card-actions
+      v-if="permissions.create || permissions.update || permissions.delete"
+    >
+      <v-btn
+        v-if="permissions.create || permissions.update"
+        color="primary"
+        @click="clear()"
+        >Clear</v-btn
+      >
+      <v-btn
+        v-if="permissions.create || permissions.update"
+        color="primary"
+        @click="saveUser()"
+        :disabled="!valid"
+        >Save</v-btn
+      >
+      <v-btn
+        v-if="closeButton && permissions.update"
+        :disabled="!localUser.id"
+        color="primary"
+        @click="resetPassword()"
+        >Reset Password</v-btn
+      >
+      <v-btn
+        v-if="closeButton && permissions.delete"
+        :disabled="!localUser.id"
+        color="red"
+        @click="deleteUser()"
+        >Delete</v-btn
+      >
       <v-spacer />
-      <v-btn v-if="!closeButton" color="red" @click="deleteUser()"
+      <v-btn
+        v-if="!closeButton && permissions.update"
+        :disabled="!localUser.id"
+        color="primary"
+        @click="resetPassword()"
+        >Reset Password</v-btn
+      >
+      <v-btn
+        v-if="!closeButton && permissions.delete"
+        :disabled="!localUser.id"
+        color="red"
+        @click="deleteUser()"
         >Delete</v-btn
       >
       <v-btn v-if="closeButton" color="gray" @click="close()">Close</v-btn>
@@ -159,6 +200,15 @@ export default {
       default: [],
       type: Array,
     },
+    permissions: {
+      default: {
+        create: false,
+        read: false,
+        update: false,
+        delete: false,
+      },
+      type: Object,
+    },
     roleNames: {
       default: defRoleNames,
       type: Array,
@@ -170,7 +220,7 @@ export default {
     newButton: {
       default: false,
       type: Boolean,
-    }
+    },
   },
   data() {
     return {
@@ -238,12 +288,22 @@ export default {
     clear: function () {
       this.$emit("unselect");
     },
+    clipboardCopy: function (text: string) {
+      const app = useAppStore();
+
+      if (typeof navigator.clipboard !== "undefined") {
+        navigator.clipboard.writeText(text);
+        app.setInfoMessage("Copied to clipboard!");
+      } else {
+        app.setInfoMessage("Your browser is blocking clipboard!");
+      }
+    },
     checkUsername: function () {
       if (this.localUser.username) {
         this.usernameLoading = true;
 
         this.axios
-          .get<API<GetUsername>>("/api/v1/username/" + this.localUser.username)
+          .get<API<GetUsername>>("/api/v1/usernames/" + this.localUser.username)
           .then(({ data }) => {
             this.usernameLoading = false;
 
@@ -253,6 +313,11 @@ export default {
               const app = useAppStore();
               app.setErrorMessage("Error checking username!");
             }
+          })
+          .catch(({ response }) => {
+            this.usernameLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error checking username!");
           });
       }
     },
@@ -271,18 +336,30 @@ export default {
             }
 
             this.$emit("updated");
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error updating user!");
           });
       } else {
-        this.axios.post("/api/v1/users", this.localUser).then(({ data }) => {
-          this.cardLoading = false;
+        this.axios
+          .post("/api/v1/users", this.localUser)
+          .then(({ data }) => {
+            this.cardLoading = false;
 
-          if (typeof data.status === "undefined" || data.status !== "done") {
+            if (typeof data.status === "undefined" || data.status !== "done") {
+              const app = useAppStore();
+              app.setErrorMessage("Error saving new user!");
+            }
+
+            this.$emit("created");
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
             const app = useAppStore();
             app.setErrorMessage("Error saving new user!");
-          }
-
-          this.$emit("created");
-        });
+          });
       }
     },
     deleteUser: function () {
@@ -300,6 +377,37 @@ export default {
             }
 
             this.$emit("deleted");
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error deleting user!");
+          });
+      }
+    },
+    resetPassword: function () {
+      this.cardLoading = true;
+
+      if (this.localUser.id) {
+        this.axios
+          .get("/api/v1/users/" + this.localUser.id + "/reset")
+          .then(({ data }) => {
+            this.cardLoading = false;
+
+            if (typeof data.status === "undefined" || data.status !== "done") {
+              const app = useAppStore();
+              app.setErrorMessage("Error resetting user password!");
+            } else {
+              let url = new URL("/reset/" + this.localUser.id, window.location.href);
+              this.clipboardCopy(url.toString());
+
+              this.$emit("updated");
+            }
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error resetting user password!");
           });
       }
     },

@@ -10,6 +10,7 @@
 
 <script lang="ts">
 export default {
+  name: "Footer",
   data: () => ({
     text: "User Managment Tool " + new Date().getFullYear(),
   }),

@@ -1,6 +1,6 @@
 use mongodb::bson::oid::ObjectId;
 
-use userman_auth::role::{DataOptions, DataValue, Item, Role, RoleItems, RoleValues, Value};
+use userman_auth::roles::{DataOptions, DataValue, Item, Role, RoleItems, RoleValues, Value};
 
 pub fn role_a() -> Role {
     Role {

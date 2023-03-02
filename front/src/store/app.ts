@@ -4,6 +4,7 @@ export const useAppStore = defineStore("app", {
   state: () => ({
     searchText: "",
     errorMessage: "",
+    infoMessage: "",
   }),
   getters: {
     getSearchText: (state) => {
@@ -12,6 +13,9 @@ export const useAppStore = defineStore("app", {
     getErrorMessage: (state) => {
       return state.errorMessage;
     },
+    getInfoMessage: (state) => {
+      return state.infoMessage;
+    },
   },
   actions: {
     setSearchText(src: string) {
@@ -19,6 +23,15 @@ export const useAppStore = defineStore("app", {
     },
     setErrorMessage(src: string) {
       this.errorMessage = src;
+      window.setTimeout(() => {
+        this.errorMessage = "";
+      }, 6000);
     },
+    setInfoMessage(src: string) {
+      this.infoMessage = src;
+      window.setTimeout(() => {
+        this.infoMessage = "";
+      }, 2000);
+    }
   },
 });

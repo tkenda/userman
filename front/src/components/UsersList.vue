@@ -15,24 +15,12 @@
             </template>
             <template v-slot:append>
               <v-btn
-                color="primary"
-                icon="mdi-content-copy"
-                variant="text"
-              ></v-btn>
-              <v-btn
-                color="primary"
+                :color="user.password ? 'grey-lighten-1' : 'primary'"
                 icon="mdi-lock-reset"
                 variant="text"
               ></v-btn>
               <v-btn
-                v-if="user.enabled"
-                color="grey-lighten-1"
-                icon="mdi-account-cancel"
-                variant="text"
-              ></v-btn>
-              <v-btn
-                v-else
-                color="red-lighten-1"
+                :color="user.enabled ? 'grey-lighten-1' : 'red-lighten-1'"
                 icon="mdi-account-cancel"
                 variant="text"
               ></v-btn>
@@ -60,6 +48,15 @@ export default {
     departments: {
       default: [],
       type: Array,
+    },
+    permissions: {
+      default: {
+        create: false,
+        read: false,
+        update: false,
+        delete: false,
+      },
+      type: Object,
     },
     removePadding: {
       default: false,
@@ -114,6 +111,9 @@ export default {
     title: function (src: User) {
       return src.name + " " + src.surname;
     },
+    passwordLink: function () {
+      console.log("meme");
+    }
   },
 };
 </script>

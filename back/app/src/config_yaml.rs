@@ -12,14 +12,14 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::dao::Dao;
 use crate::logger::LogsLevel;
-use crate::{Result, UmtError};
+use crate::{Result, UsermanError};
 
 fn default_mongo_db_uri() -> String {
     String::from("mongodb://localhost:27017")
 }
 
 fn default_mongo_db_db_name() -> String {
-    String::from("umt")
+    String::from("userman")
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -37,6 +37,16 @@ impl Default for MongoDB {
         Self {
             uri: default_mongo_db_uri(),
             db_name: default_mongo_db_db_name(),
+        }
+    }
+}
+
+impl From<MongoDB> for userman_auth::MongoDB {
+    fn from(src: MongoDB) -> Self {
+        userman_auth::MongoDB {
+            uri: src.uri.to_owned(),
+            db_name: src.db_name,
+            client_name: "local".to_string(),
         }
     }
 }
@@ -132,8 +142,8 @@ impl ConfigYAML {
                 reader
                     .read_to_string(&mut content)
                     .await
-                    .map_err(|err| UmtError::StdIoError(err.to_string()))?;
-                serde_yaml::from_str(&content).map_err(|err| UmtError::YAMLFile(err.to_string()))
+                    .map_err(|err| UsermanError::StdIoError(err.to_string()))?;
+                serde_yaml::from_str(&content).map_err(|err| UsermanError::YAMLFile(err.to_string()))
             }
             Err(err) => {
                 debug!("{}", err);
@@ -141,12 +151,12 @@ impl ConfigYAML {
 
                 let mut reader = File::create(path)
                     .await
-                    .map_err(|err| UmtError::StdIoError(err.to_string()))?;
+                    .map_err(|err| UsermanError::StdIoError(err.to_string()))?;
                 let content: String = serde_yaml::to_string(&Self::default()).unwrap();
                 reader
                     .write_all(content.as_bytes())
                     .await
-                    .map_err(|err| UmtError::StdIoError(err.to_string()))?;
+                    .map_err(|err| UsermanError::StdIoError(err.to_string()))?;
 
                 Ok(Self::default())
             }
@@ -156,12 +166,11 @@ impl ConfigYAML {
     pub async fn dao(&self) -> Result<Dao> {
         let mut client_options = ClientOptions::parse(&self.mongo_db.uri)
             .await
-            .map_err(UmtError::MongoParseUri)?;
+            .map_err(UsermanError::MongoParseUri)?;
 
         client_options.app_name = Some(self.name.to_owned());
 
-        let client =
-            Client::with_options(client_options).map_err(UmtError::MongoCreateClient)?;
+        let client = Client::with_options(client_options).map_err(UsermanError::MongoCreateClient)?;
 
         let database = client.database(&self.mongo_db.db_name);
 

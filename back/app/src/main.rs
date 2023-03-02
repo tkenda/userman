@@ -4,30 +4,30 @@ mod config_yaml;
 mod configs;
 mod dao;
 mod error;
+mod files;
 mod logger;
 mod roles;
 mod tokens;
 mod users;
 mod watchers;
-mod files;
 mod web;
 
 #[cfg(test)]
 mod tests;
 
-use userman_auth::role::RoleItems;
-use userman_auth::app::LOCAL_APP;
-use userman_auth::Auth;
 use config_yaml::ConfigYAML;
 use configs::Configs;
 use dao::{Dao, Memory};
-use error::UmtError;
+use error::UsermanError;
 use logger::LogsLevel;
 use mongodb::bson::oid::ObjectId;
 use serde::ser::SerializeSeq;
 use tokens::{Keys, SessionToken};
+use userman_auth::apps::LOCAL_APP;
+use userman_auth::roles::RoleItems;
+use userman_auth::Auth;
 
-pub type Result<T> = std::result::Result<T, UmtError>;
+pub type Result<T> = std::result::Result<T, UsermanError>;
 
 const YAML_FILE: &str = "config.yaml";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -82,18 +82,18 @@ pub(crate) async fn wait_for_shutdown() -> Result<()> {
     use tokio::signal::unix::{signal, SignalKind};
 
     async fn interrupt() -> Result<()> {
-        let mut sigint = signal(SignalKind::interrupt()).map_err(UmtError::SignalInterrupt)?;
+        let mut sigint = signal(SignalKind::interrupt()).map_err(UsermanError::SignalInterrupt)?;
 
-        sigint.recv().await.ok_or(UmtError::InterruptBlocking)?;
+        sigint.recv().await.ok_or(UsermanError::InterruptBlocking)?;
 
         info!("Main thread received SIGINT.");
         Ok(())
     }
 
     async fn terminate() -> Result<()> {
-        let mut sigterm = signal(SignalKind::terminate()).map_err(UmtError::SignalTerminate)?;
+        let mut sigterm = signal(SignalKind::terminate()).map_err(UsermanError::SignalTerminate)?;
 
-        sigterm.recv().await.ok_or(UmtError::TerminateBlocking)?;
+        sigterm.recv().await.ok_or(UsermanError::TerminateBlocking)?;
 
         info!("Main thread received SIGTERM.");
         Ok(())
@@ -141,7 +141,7 @@ impl Shared {
 async fn main() -> Result<()> {
     let mut logger = logger::build();
 
-    info!("Proteus UMT v{}", VERSION);
+    info!("Proteus Userman v{}", VERSION);
 
     let config_yaml = ConfigYAML::read_or_create_file(YAML_FILE).await?;
 
@@ -153,7 +153,10 @@ async fn main() -> Result<()> {
     let dao = config_yaml.dao().await?;
     dao.init().await?;
 
-    let auth = Auth::builder(LOCAL_APP).build().await?;
+    let auth = Auth::builder(LOCAL_APP)
+        .mongodb(config_yaml.mongo_db.clone())
+        .build()
+        .await?;
     auth.init().await?;
 
     let shared = Shared {

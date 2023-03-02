@@ -2,7 +2,12 @@
   <template v-if="compactMode">
     <v-row no-gutters>
       <v-col>
-        <v-btn class="mt-2 mx-2" color="primary" @click="openNew">
+        <v-btn
+          class="mt-2 mx-2"
+          color="primary"
+          @click="openNew"
+          v-show="permissions.create"
+        >
           New
           <v-icon end icon="mdi-plus"></v-icon>
         </v-btn>
@@ -16,6 +21,7 @@
     <v-dialog v-model="dialog">
       <app-card
         :app="app"
+        :permissions="permissions"
         @updated="handleUpdated"
         @created="handleCreatedDeleted"
         @deleted="handleCreatedDeleted"
@@ -38,6 +44,7 @@
       <v-col style="padding: 20px">
         <app-card
           :app="app"
+          :permissions="permissions"
           @updated="handleUpdated"
           @created="handleCreatedDeleted"
           @deleted="handleCreatedDeleted"
@@ -61,8 +68,11 @@
 </template>
 
 <script lang="ts">
+import * as Userman from "../../userman-auth";
+
 import { storeToRefs } from "pinia";
 import { useAppStore } from "@/store/app";
+import { useAuthStore } from "@/store/auth";
 
 import AppsList from "../components/AppsList.vue";
 import AppCard from "../components/AppCard.vue";
@@ -91,9 +101,38 @@ export default {
       unselect: false,
       loading: false,
       firstLoad: true,
+      permissions: {
+        create: false,
+        read: false,
+        update: false,
+        delete: false,
+      },
     };
   },
   created() {
+    const auth = useAuthStore();
+
+    if (auth !== null) {
+      const permissions = auth.getPermissions;
+
+      this.permissions.create = Userman.Boolean(
+        permissions,
+        "/apps/create.boolean"
+      );
+      this.permissions.read = Userman.Boolean(
+        permissions,
+        "/apps/read.boolean"
+      );
+      this.permissions.update = Userman.Boolean(
+        permissions,
+        "/apps/update.boolean"
+      );
+      this.permissions.delete = Userman.Boolean(
+        permissions,
+        "/apps/delete.boolean"
+      );
+    }
+
     this.getApps();
   },
   mounted() {

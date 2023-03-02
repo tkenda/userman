@@ -1,4 +1,4 @@
-use userman_auth::role::{DataValue, Role};
+use userman_auth::roles::{DataValue, Role};
 
 use crate::tests::data::role_a;
 

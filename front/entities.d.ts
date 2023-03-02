@@ -1,5 +1,7 @@
 /* Users */
 
+import * as Userman from "userman-auth";
+
 export interface User {
   id?: string;
   username: string | undefined;
@@ -10,6 +12,7 @@ export interface User {
   department: string | undefined;
   enabled: boolean;
   roles: string[];
+  password?: string;
   avatar?: string;
 }
 
@@ -20,31 +23,11 @@ export interface Department {
 
 /* Roles */
 
-export interface DataOptions {
-  minValue: any;
-  maxValue: any;
-}
-
-export interface Value {
-  name: string;
-  string?: string;
-  float?: number;
-  number?: number;
-  boolean?: boolean;
-  options?: DataOptions;
-}
-
-export interface Item {
-  name: string;
-  values?: Value[];
-  items?: Item[];
-}
-
 export interface Role {
   id?: string;
   app: string | undefined;
   name: string | undefined;
-  items: Item[];
+  items: Userman.Item[];
   enabled: boolean;
 }
 
@@ -63,9 +46,18 @@ export interface RoleName {
 export interface App {
   id?: string;
   name: string | undefined;
-  defaultRole: Item[];
+  defaultRole: Userman.Item[];
   version: number;
   enabled: boolean;
+}
+
+/* Permissions */
+
+export interface CRUD {
+  create: boolean;
+  read: boolean;
+  update: boolean;
+  delete: boolean;
 }
 
 /* API */
@@ -79,6 +71,7 @@ export interface API<T> {
 export interface PostLogin {
   accessToken: string;
   refreshToken: string;
+  permissions: Userman.Item[];
 }
 
 export interface PostRefresh {

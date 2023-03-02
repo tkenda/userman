@@ -5,16 +5,19 @@
         <strong v-html="name"></strong>
       </v-toolbar-title>
 
-      <v-toolbar-title class="d-flex justify-end px-2" v-if="newButton">
-          <v-btn variant="outlined" @click="clear">
-            New
-            <v-icon end icon="mdi-plus"></v-icon>
-          </v-btn>
-        </v-toolbar-title>
+      <v-toolbar-title
+        class="d-flex justify-end px-2"
+        v-if="newButton && permissions.create"
+      >
+        <v-btn variant="outlined" @click="clear">
+          New
+          <v-icon end icon="mdi-plus"></v-icon>
+        </v-btn>
+      </v-toolbar-title>
     </v-toolbar>
 
     <v-card-text class="pt-4 pb-2">
-      <v-form v-model="valid">
+      <v-form v-model="valid" ref="form">
         <v-text-field
           v-model="appId"
           label="ID"
@@ -62,17 +65,37 @@
       ></json-viewer>
     </v-card-text>
 
-    <v-card-actions>
-      <v-btn color="primary" @click="clear()">Clear</v-btn>
+    <v-card-actions
+      v-if="permissions.create || permissions.update || permissions.delete"
+    >
       <v-btn
+        v-if="permissions.create || permissions.update"
+        color="primary"
+        @click="clear()"
+        >Clear</v-btn
+      >
+      <v-btn
+        v-if="permissions.create || permissions.update"
         color="primary"
         @click="saveApp()"
         :disabled="!valid || errorMessages !== undefined"
         >Save</v-btn
       >
-      <v-btn v-if="closeButton" color="red" @click="deleteApp()">Delete</v-btn>
+      <v-btn
+        v-if="closeButton && permissions.delete"
+        color="red"
+        @click="deleteApp()"
+        :disabled="!localApp.id"
+        >Delete</v-btn
+      >
       <v-spacer />
-      <v-btn v-if="!closeButton" color="red" @click="deleteApp()">Delete</v-btn>
+      <v-btn
+        v-if="!closeButton && permissions.delete"
+        color="red"
+        @click="deleteApp()"
+        :disabled="!localApp.id"
+        >Delete</v-btn
+      >
       <v-btn v-if="closeButton" color="gray" @click="close()">Close</v-btn>
     </v-card-actions>
   </v-card>
@@ -115,6 +138,15 @@ export default {
       default: {},
       type: Object,
     },
+    permissions: {
+      default: {
+        create: false,
+        read: false,
+        update: false,
+        delete: false,
+      },
+      type: Object,
+    },
     closeButton: {
       default: false,
       type: Boolean,
@@ -122,7 +154,7 @@ export default {
     newButton: {
       default: false,
       type: Boolean,
-    }
+    },
   },
   data() {
     return {
@@ -202,18 +234,30 @@ export default {
             }
 
             this.$emit("updated");
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error updating app!");
           });
       } else {
-        this.axios.post("/api/v1/apps", this.localApp).then(({ data }) => {
-          this.cardLoading = false;
+        this.axios
+          .post("/api/v1/apps", this.localApp)
+          .then(({ data }) => {
+            this.cardLoading = false;
 
-          if (typeof data.status === "undefined" || data.status !== "done") {
+            if (typeof data.status === "undefined" || data.status !== "done") {
+              const app = useAppStore();
+              app.setErrorMessage("Error saving new app!");
+            }
+
+            this.$emit("created");
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
             const app = useAppStore();
             app.setErrorMessage("Error saving new app!");
-          }
-
-          this.$emit("created");
-        });
+          });
       }
     },
     deleteApp: function () {
@@ -231,6 +275,11 @@ export default {
             }
 
             this.$emit("deleted");
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error deleting app!");
           });
       }
     },

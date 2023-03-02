@@ -18,7 +18,7 @@ use tokio::sync::RwLock;
 
 use crate::configs::{ConfigData, TOKEN_CONFIG};
 use crate::dao::{Dao, Memory};
-use crate::{Result, UmtError};
+use crate::{Result, UsermanError};
 
 #[derive(Clone)]
 pub struct Keys {
@@ -46,7 +46,7 @@ impl Memory<ConfigData, ObjectId> for Keys {
     async fn load(dao: &Dao) -> Result<Self> {
         let web_config = match dao.read_config(TOKEN_CONFIG).await? {
             Some(t) => t.unwrap_token()?,
-            _ => return Err(UmtError::GetConfig(TOKEN_CONFIG)),
+            _ => return Err(UsermanError::GetConfig(TOKEN_CONFIG)),
         };
 
         let encoding_key = EncodingKey::from_secret(web_config.secret.as_bytes());
@@ -63,7 +63,7 @@ impl Memory<ConfigData, ObjectId> for Keys {
     async fn reload(&self, dao: &Dao) -> Result<()> {
         let web_config = match dao.read_config(TOKEN_CONFIG).await? {
             Some(t) => t.unwrap_token()?,
-            _ => return Err(UmtError::GetConfig(TOKEN_CONFIG)),
+            _ => return Err(UsermanError::GetConfig(TOKEN_CONFIG)),
         };
 
         let encoding_key = EncodingKey::from_secret(web_config.secret.as_bytes());
@@ -105,12 +105,12 @@ impl Claims {
     }
 
     pub fn encode(&self, encoding_key: &EncodingKey) -> Result<String> {
-        encode(&Header::default(), &self, encoding_key).map_err(UmtError::JWTEncode)
+        encode(&Header::default(), &self, encoding_key).map_err(UsermanError::JWTEncode)
     }
 
     pub fn decode(token: &str, decoding_key: &DecodingKey) -> Result<Self> {
         let token = decode::<Claims>(token, decoding_key, &Validation::default())
-            .map_err(UmtError::JWTDecode)?;
+            .map_err(UsermanError::JWTDecode)?;
 
         Ok(token.claims)
     }
@@ -124,7 +124,7 @@ impl<S> FromRequestParts<S> for SessionToken
 where
     S: Send + Sync,
 {
-    type Rejection = UmtError;
+    type Rejection = UsermanError;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -133,7 +133,7 @@ where
         let TypedHeader(Authorization(bearer)) = parts
             .extract::<TypedHeader<Authorization<Bearer>>>()
             .await
-            .map_err(|_| UmtError::InvalidToken)?;
+            .map_err(|_| UsermanError::InvalidToken)?;
 
         Ok(Self(bearer.token().to_owned()))
     }
@@ -150,9 +150,9 @@ impl SessionToken {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefreshToken {
-    username: String,
+    user: ObjectId,
     token: String,
-    app: String,
+    client: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     device: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -168,15 +168,15 @@ impl ToString for RefreshToken {
 
 impl RefreshToken {
     pub fn build<T: Into<String>>(
-        username: String,
-        app: T,
+        user: ObjectId,
+        client: T,
         device: Option<String>,
         location: Option<Vec<f64>>,
     ) -> Self {
         Self {
-            username,
+            user,
             token: Alphanumeric.sample_string(&mut rand::thread_rng(), 128),
-            app: app.into(),
+            client: client.into(),
             device,
             location,
             created_at: DateTime::now(),

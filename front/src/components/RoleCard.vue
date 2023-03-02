@@ -5,7 +5,10 @@
         <strong v-html="localRole.name"></strong>
       </v-toolbar-title>
 
-      <v-toolbar-title class="d-flex justify-end px-2" v-if="newButton">
+      <v-toolbar-title
+        class="d-flex justify-end px-2"
+        v-if="newButton && permissions.create"
+      >
         <v-btn variant="outlined" @click="clear">
           New
           <v-icon end icon="mdi-plus"></v-icon>
@@ -14,7 +17,7 @@
     </v-toolbar>
 
     <v-card-text class="overflow-auto">
-      <v-form v-model="valid">
+      <v-form v-model="valid" ref="form">
         <v-text-field
           v-model="roleId"
           label="ID"
@@ -53,15 +56,43 @@
         </v-expansion-panel>
       </v-expansion-panels>
     </v-card-text>
-    <v-card-actions>
-      <v-btn color="primary" @click="clear()">Clear</v-btn>
-      <v-btn color="primary" @click="saveRole()" :disabled="!valid">Save</v-btn>
-      <v-btn color="warning" @click="syncRole()" :disabled="!needSync"
+
+    <v-card-actions
+      v-if="permissions.create || permissions.update || permissions.delete"
+    >
+      <v-btn
+        v-if="permissions.create || permissions.update"
+        color="primary"
+        @click="clear()"
+        >Clear</v-btn
+      >
+      <v-btn
+        v-if="permissions.create || permissions.update"
+        color="primary"
+        @click="saveRole()"
+        :disabled="!valid"
+        >Save</v-btn
+      >
+      <v-btn
+        v-if="permissions.update"
+        color="warning"
+        @click="syncRole()"
+        :disabled="!needSync"
         >Sync</v-btn
       >
-      <v-btn v-if="closeButton" color="red" @click="deleteRole()">Delete</v-btn>
+      <v-btn
+        v-if="closeButton && permissions.delete"
+        :disabled="!localRole.id"
+        color="red"
+        @click="deleteRole()"
+        >Delete</v-btn
+      >
       <v-spacer />
-      <v-btn v-if="!closeButton" color="red" @click="deleteRole()"
+      <v-btn
+        v-if="!closeButton && permissions.delete"
+        :disabled="!localRole.id"
+        color="red"
+        @click="deleteRole()"
         >Delete</v-btn
       >
       <v-btn v-if="closeButton" color="gray" @click="close()">Close</v-btn>
@@ -74,7 +105,7 @@ import RoleValues from "./RoleValues.vue";
 import RoleItemsA from "./RoleItemsA.vue";
 
 import { useAppStore } from "@/store/app";
-import { Role, App, API, GetRoleName, Value, Item } from "../../entities";
+import { Role, App, API, GetRoleName } from "../../entities";
 
 import { clone, clearItems } from "../global";
 
@@ -105,6 +136,15 @@ export default {
       default: defApps,
       type: Array,
     },
+    permissions: {
+      default: {
+        create: false,
+        read: false,
+        update: false,
+        delete: false,
+      },
+      type: Object,
+    },
     closeButton: {
       default: false,
       type: Boolean,
@@ -112,7 +152,7 @@ export default {
     newButton: {
       default: false,
       type: Boolean,
-    }
+    },
   },
   data() {
     return {
@@ -192,7 +232,7 @@ export default {
         this.nameLoading = true;
 
         this.axios
-          .get<API<GetRoleName>>("/api/v1/rolename/" + this.localRole.name)
+          .get<API<GetRoleName>>("/api/v1/rolenames/" + this.localRole.name)
           .then(({ data }) => {
             this.nameLoading = false;
 
@@ -202,6 +242,11 @@ export default {
               const app = useAppStore();
               app.setErrorMessage("Error checking name!");
             }
+          })
+          .catch(({ response }) => {
+            this.nameLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error checking name!");
           });
       }
     },
@@ -222,6 +267,11 @@ export default {
             }
 
             this.$emit("updated");
+          })
+          .catch(({ response }) => {
+            this.syncLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error syncing role!");
           });
       }
     },
@@ -251,18 +301,30 @@ export default {
             }
 
             this.$emit("updated");
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error updating role!");
           });
       } else {
-        this.axios.post("/api/v1/roles", this.localRole).then(({ data }) => {
-          this.cardLoading = false;
+        this.axios
+          .post("/api/v1/roles", this.localRole)
+          .then(({ data }) => {
+            this.cardLoading = false;
 
-          if (typeof data.status === "undefined" || data.status !== "done") {
+            if (typeof data.status === "undefined" || data.status !== "done") {
+              const app = useAppStore();
+              app.setErrorMessage("Error saving new role!");
+            }
+
+            this.$emit("created");
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
             const app = useAppStore();
             app.setErrorMessage("Error saving new role!");
-          }
-
-          this.$emit("created");
-        });
+          });
       }
     },
     deleteRole: function () {
@@ -280,6 +342,11 @@ export default {
             }
 
             this.$emit("deleted");
+          })
+          .catch(({ response }) => {
+            this.cardLoading = false;
+            const app = useAppStore();
+            app.setErrorMessage("Error deleting role!");
           });
       }
     },

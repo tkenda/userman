@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use log::error;
-use mongodb::bson::DateTime;
 use mongodb::bson::oid::ObjectId;
+use mongodb::bson::DateTime;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -18,7 +19,7 @@ pub const ADMIN_USERNAME: &str = "admin";
 pub struct UserDB {
     #[serde(
         rename(serialize = "id", deserialize = "_id"),
-        skip_serializing_if = "Option::is_none",
+        skip_serializing_if = "Option::is_none"
     )]
     pub id: Option<ObjectId>,
     pub username: String,
@@ -39,7 +40,7 @@ pub struct UserDB {
     pub updated_at: Option<DateTime>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
     #[serde(
@@ -47,9 +48,11 @@ pub struct User {
         skip_serializing_if = "Option::is_none",
         serialize_with = "serialize_option_oid_as_string"
     )]
+    #[schema(value_type = String)]
     pub id: Option<ObjectId>,
     pub username: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = String)]
     pub password: Option<String>,
     pub email: String,
     pub name: String,
@@ -57,6 +60,7 @@ pub struct User {
     pub description: String,
     pub department: String,
     #[serde(serialize_with = "serialize_vec_oid_as_string")]
+    #[schema(value_type = String)]
     pub roles: Vec<ObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
@@ -76,7 +80,7 @@ impl Default for User {
             email: "admin@proteus.com.ar".to_string(),
             name: "admin".to_string(),
             surname: "admin".to_string(),
-            description: Default::default(),
+            description: "admin".to_string(),
             department: "Super Admin".to_string(),
             roles: vec![],
             avatar: None,
@@ -92,16 +96,16 @@ impl User {
         self.id.unwrap_or_default()
     }
 
-    pub fn verify<P: AsRef<[u8]>>(&self, password: P) -> bool {
+    pub fn verify<P: AsRef<[u8]>>(&self, password: P) -> Option<bool> {
         match self.password {
             Some(ref t) => match verify(password, t) {
-                Ok(t) => t,
+                Ok(t) => Some(t),
                 Err(err) => {
                     error!("{}", err);
-                    false
+                    Some(false)
                 }
             },
-            None => false,
+            None => None,
         }
     }
 
@@ -115,9 +119,16 @@ impl User {
         }
     }
 
-    pub fn hide_password(self) -> Self {
+    pub fn none_password(self) -> Self {
         Self {
             password: None,
+            ..self
+        }
+    }
+
+    pub fn hide_password(self) -> Self {
+        Self {
+            password: self.password.map(|_| "hidden".to_string()),
             ..self
         }
     }
@@ -154,10 +165,13 @@ impl User {
             avatar: self.avatar,
             enabled: self.enabled,
             created_at: None,
-            updated_at: Some(DateTime::now())
+            updated_at: Some(DateTime::now()),
         }
     }
 }
+
+#[derive(Serialize, ToSchema)]
+pub struct UsersVec(pub Vec<User>);
 
 #[derive(Clone)]
 pub struct Users {

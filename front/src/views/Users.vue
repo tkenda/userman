@@ -2,12 +2,18 @@
   <template v-if="compactMode">
     <v-row no-gutters>
       <v-col>
-        <v-btn class="mt-2 mx-2" color="primary" @click="openNew">
+        <v-btn
+          class="mt-2 mx-2"
+          color="primary"
+          @click="openNew"
+          v-show="permissions.create"
+        >
           New
           <v-icon end icon="mdi-plus"></v-icon>
         </v-btn>
         <users-list
           :departments="departments"
+          :permissions="permissions"
           :unselect="unselect"
           @selected="handleSelection"
         />
@@ -17,6 +23,7 @@
       <user-card
         :user="user"
         :departments="departments"
+        :permissions="permissions"
         :roleNames="roleNames"
         @created="handleCreatedDeleted"
         @deleted="handleCreatedDeleted"
@@ -32,6 +39,7 @@
       <v-col style="padding: 20px 0px 20px 20px">
         <users-list
           :departments="departments"
+          :permissions="permissions"
           :unselect="unselect"
           @selected="handleSelection"
           removePadding
@@ -41,6 +49,7 @@
         <user-card
           :user="user"
           :departments="departments"
+          :permissions="permissions"
           :roleNames="roleNames"
           @created="handleCreatedDeleted"
           @deleted="handleCreatedDeleted"
@@ -66,8 +75,11 @@
 </template>
 
 <script lang="ts">
+import * as Userman from "../../userman-auth";
+
 import { storeToRefs } from "pinia";
 import { useAppStore } from "@/store/app";
+import { useAuthStore } from "@/store/auth";
 
 import UsersList from "../components/UsersList.vue";
 import UserCard from "../components/UserCard.vue";
@@ -106,9 +118,38 @@ export default {
       loadingUsers: false,
       loadingRoleNames: false,
       firstLoad: true,
+      permissions: {
+        create: false,
+        read: false,
+        update: false,
+        delete: false,
+      },
     };
   },
   created() {
+    const auth = useAuthStore();
+
+    if (auth !== null) {
+      const permissions = auth.getPermissions;
+
+      this.permissions.create = Userman.Boolean(
+        permissions,
+        "/users/create.boolean"
+      );
+      this.permissions.read = Userman.Boolean(
+        permissions,
+        "/users/read.boolean"
+      );
+      this.permissions.update = Userman.Boolean(
+        permissions,
+        "/users/update.boolean"
+      );
+      this.permissions.delete = Userman.Boolean(
+        permissions,
+        "/users/delete.boolean"
+      );
+    }
+
     this.getUsers();
     this.getRoleNames();
   },

@@ -2,7 +2,12 @@
   <template v-if="compactMode">
     <v-row no-gutters>
       <v-col>
-        <v-btn class="mt-2 mx-2" color="primary" @click="openNew">
+        <v-btn
+          class="mt-2 mx-2"
+          color="primary"
+          @click="openNew"
+          v-show="permissions.create"
+        >
           New
           <v-icon end icon="mdi-plus"></v-icon>
         </v-btn>
@@ -18,6 +23,7 @@
       <role-card
         :apps="apps"
         :role="role"
+        :permissions="permissions"
         @updated="handleUpdated"
         @created="handleCreatedDeleted"
         @deleted="handleCreatedDeleted"
@@ -42,6 +48,7 @@
         <role-card
           :apps="apps"
           :role="role"
+          :permissions="permissions"
           class="sticky-card"
           @updated="handleUpdated"
           @created="handleCreatedDeleted"
@@ -66,8 +73,11 @@
 </template>
 
 <script lang="ts">
+import * as Userman from "../../userman-auth";
+
 import { storeToRefs } from "pinia";
 import { useAppStore } from "@/store/app";
+import { useAuthStore } from "@/store/auth";
 
 import RolesList from "../components/RolesList.vue";
 import RoleCard from "../components/RoleCard.vue";
@@ -99,9 +109,38 @@ export default {
       rolesLoading: false,
       appsLoading: false,
       firstLoad: true,
+      permissions: {
+        create: false,
+        read: false,
+        update: false,
+        delete: false,
+      },
     };
   },
   created() {
+    const auth = useAuthStore();
+
+    if (auth !== null) {
+      const permissions = auth.getPermissions;
+
+      this.permissions.create = Userman.Boolean(
+        permissions,
+        "/roles/create.boolean"
+      );
+      this.permissions.read = Userman.Boolean(
+        permissions,
+        "/roles/read.boolean"
+      );
+      this.permissions.update = Userman.Boolean(
+        permissions,
+        "/roles/update.boolean"
+      );
+      this.permissions.delete = Userman.Boolean(
+        permissions,
+        "/roles/delete.boolean"
+      );
+    }
+
     this.getApps();
     this.getRoles();
   },

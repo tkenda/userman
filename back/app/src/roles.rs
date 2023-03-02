@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use userman_auth::role::{Role, RoleItems};
+use userman_auth::roles::{Role, RoleItems};
 
 use crate::dao::{Dao, Memory};
 use crate::serialize_option_oid_as_string;

@@ -26,3 +26,5 @@ bcrypt = "0.13.0"
 jsonwebtoken = "8.2.0"
 rand = "0.8.5"
 chrono = "0.4.23"
+utoipa = { version = "3.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "3.0", features = ["axum"] }

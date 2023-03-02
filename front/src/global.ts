@@ -1,4 +1,4 @@
-import { Value, Item } from "../entities";
+import * as Userman from "userman-auth";
 
 export const clone = (obj: any) => {
   if (null == obj || "object" != typeof obj) return obj;
@@ -9,7 +9,7 @@ export const clone = (obj: any) => {
   return copy;
 };
 
-const clearValues = (values: Value[] | undefined) => {
+const clearValues = (values: Userman.Value[] | undefined) => {
   if (values) {
     for (let i = 0; i < values.length; i++) {
       if (values[i].boolean) {
@@ -25,7 +25,7 @@ const clearValues = (values: Value[] | undefined) => {
   }
 };
 
-export const clearItems = (items: Item[] | undefined) => {
+export const clearItems = (items: Userman.Item[] | undefined) => {
   if (items) {
     for (let i = 0; i < items.length; i++) {
       clearValues(items[i].values);
@@ -33,4 +33,3 @@ export const clearItems = (items: Item[] | undefined) => {
     }
   }
 };
-

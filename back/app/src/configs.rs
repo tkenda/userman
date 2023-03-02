@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::dao::{Dao, Memory};
-use crate::{Result, UmtError};
+use crate::{Result, UsermanError};
 
 pub static TOKEN_CONFIG: &str = "token";
 
@@ -66,7 +66,7 @@ impl Config {
         match self.data {
             ConfigData::Token(ref t) => Ok(t.clone()),
             #[allow(unreachable_patterns)]
-            _ => Err(UmtError::GetConfig(TOKEN_CONFIG)),
+            _ => Err(UsermanError::GetConfig(TOKEN_CONFIG)),
         }
     }
 }

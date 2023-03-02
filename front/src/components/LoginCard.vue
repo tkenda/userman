@@ -70,6 +70,7 @@ import { API, PostLogin } from "../../entities";
 import { useAuthStore } from "@/store/auth";
 
 export default {
+  name: "LoginCard",
   data: () => ({
     form: false,
     username: null,
